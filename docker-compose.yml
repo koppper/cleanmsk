@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:12.18
+    container_name: postgres_db
+    restart: always
+    environment:
+      POSTGRES_USER: cleanmoskow2
+      POSTGRES_PASSWORD: cleanmoskow2
+      POSTGRES_DB: cleanmoskow2
+    ports:
+      - "5433:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  django:
+    build: .
+    container_name: django_app
+    restart: always
+    command: gunicorn cleanmoskow.wsgi:application --bind 0.0.0.0:8085 --workers 4
+    depends_on: 
+      - db
+    env_file: cleanmoskow/.env
+    environment:
+      DEBUG: "False"
+      PYTHONPATH: "/code"
+    ports:
+      - "8085:8085"
+    volumes:
+      - ./cleanmoskow:/code
+      - ./static:/code/static
+      - ./media:/code/media
+
+  bot:
+    build: .
+    container_name: telegram_bot
+    restart: always
+    depends_on: 
+      - django
+    env_file: cleanmoskow/.env
+    command: python bot.py
+    volumes:
+      - ./cleanmoskow:/code
+
+volumes:
+  db_data:
