@@ -23,7 +23,6 @@ class GameSessionSerializer(serializers.ModelSerializer):
 
 
 class AnswerQuestionSerializer(serializers.Serializer):
-    uuid = serializers.UUIDField(required=True, help_text="UUID пользователя")
     session_id = serializers.IntegerField(required=True, help_text="ID игровой сессии")
     question_id = serializers.IntegerField(required=True, help_text="ID вопроса, на который даётся ответ")
     answer = serializers.IntegerField(required=True, help_text="Выбранный вариант ответа (индекс)")

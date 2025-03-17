@@ -7,7 +7,7 @@ from django.conf.urls.static import static
 
 schema_view = get_schema_view(
     openapi.Info(
-        title="Tictac API",
+        title="Чистая Москва API",
         default_version='v1',
         description="Документация для API",
     ),
@@ -16,11 +16,10 @@ schema_view = get_schema_view(
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('accounts/', include('accounts.urls')),
     path('games/', include('games.urls')),
     path('sorting-games/', include('sorting_game.urls')),
-
     path('api/', include('api.urls'))
-
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 

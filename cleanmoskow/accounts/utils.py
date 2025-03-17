@@ -5,7 +5,7 @@ from django.conf import settings
 
 def verify_telegram_data(init_data: str) -> bool:
     """Проверяет подпись Telegram"""
-    token = settings.TELEGRAM_BOT_TOKEN  # Берем из settings.py
+    token = settings.TELEGRAM_BOT_TOKEN
     secret_key = hashlib.sha256(token.encode()).digest()
 
     parsed_data = dict(urllib.parse.parse_qsl(init_data))

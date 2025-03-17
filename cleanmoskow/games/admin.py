@@ -1,10 +1,15 @@
 from django.contrib import admin
 import json 
-from .models import GameSession, Leaderboard, QuizQuestions
+from .models import GameSession, Leaderboard, QuizQuestions, CensoredWord
 from django.utils.safestring import mark_safe
 from django import forms
 
-admin.site.register(Leaderboard)
+
+@admin.register(Leaderboard)
+class LeaderboardAdmin(admin.ModelAdmin):
+    list_display = ("id", "user", "username", "score")
+    search_fields = ("user",)
+
 
 class QuizQuestionsAdminForm(forms.ModelForm):
     answers = forms.CharField(
@@ -19,7 +24,7 @@ class QuizQuestionsAdminForm(forms.ModelForm):
     def clean_answers(self):
         """Преобразуем текстовые ответы в JSON-список"""
         data = self.cleaned_data["answers"].strip().split("\n")
-        return [answer.strip() for answer in data if answer.strip()]  # Убираем пустые строки
+        return [answer.strip() for answer in data if answer.strip()]
 
 
 @admin.register(QuizQuestions)
@@ -32,7 +37,7 @@ class QuizQuestionsAdmin(admin.ModelAdmin):
 @admin.register(GameSession)
 class GameSessionAdmin(admin.ModelAdmin):
     list_display = ("user", "formatted_question", "current_question_index", "finished", "created_at")
-    search_fields = ("user__uuid",)
+    search_fields = ("user__uuid", "user__username", "user__user__username")
     readonly_fields = ("display_questions",)
     exclude = ("questions",)
     list_filter = ("finished", "user",)
@@ -43,7 +48,6 @@ class GameSessionAdmin(admin.ModelAdmin):
         if extra_context is None:
             extra_context = {}
 
-        # ✅ Считаем количество игр
         extra_context['total_games'] = GameSession.objects.count()
 
         return super().changelist_view(request, extra_context=extra_context)
@@ -77,3 +81,9 @@ class GameSessionAdmin(admin.ModelAdmin):
         return mark_safe(html)
 
     display_questions.short_description = "Список вопросов"
+
+
+@admin.register(CensoredWord)
+class CensoredWordAdmin(admin.ModelAdmin):
+    list_display = ("word",)
+    search_fields = ("word",)

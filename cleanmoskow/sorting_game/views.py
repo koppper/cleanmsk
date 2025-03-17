@@ -4,61 +4,65 @@ from rest_framework import status
 from django.shortcuts import get_object_or_404
 from .models import SortingGameSession
 from games.models import Leaderboard
-from .serializers import SortingGameSessionSerializer, SubmitScoreSerializer
+from .serializers import SortingGameSessionSerializer, SortingGameSessionHistorySerializer
 from games.serializers import LeaderboardSerializer, TelegramIdSerializer
 from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
 
-from api.models import TelegramUser 
+from accounts.models import TelegramUser 
+
 
 class StartSortingGameSession(APIView):
     """Создание новой игры"""
+    
     @swagger_auto_schema(
-        operation_description="Start a new StartSortingGameView",
-        request_body=TelegramIdSerializer,
+        operation_description="Запуск новой игры",
+        request_body=SortingGameSessionSerializer,
+        responses={201: openapi.Response("Игра началась", SortingGameSessionSerializer)}
     )
     def post(self, request):
-        serializer = TelegramIdSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        uuid = serializer.validated_data["uuid"]
-        user = get_object_or_404(TelegramUser, uuid=uuid)
+        serializer = SortingGameSessionSerializer(data=request.data)
+        telegram_user = request.user.telegram_profile
 
-        game_session = SortingGameSession.objects.create(user=user)
+        if serializer.is_valid():
+            game_session = serializer.save()
+            # user = game_session.user
+            score = game_session.score
 
-        return Response({"message": "Игра началась", "game_id": game_session.id}, status=status.HTTP_201_CREATED)
+            leaderboard_entry, created = Leaderboard.objects.get_or_create(
+                user=telegram_user,
+                defaults={"username": str(telegram_user.uuid), "score": 0}
+            )
+
+            leaderboard_entry.score += score
+            leaderboard_entry.save()
+
+            return Response(
+                {
+                    "message": "Игра началась",
+                    "game_id": game_session.id,
+                    "total_score": leaderboard_entry.score,
+                },
+                status=status.HTTP_201_CREATED,
+            )
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class SubmitScore(APIView):
-    """Отправка очков и обновление лидерборда"""
-    @swagger_auto_schema(
-        operation_description="Start a SubmitScore",
-        request_body=SubmitScoreSerializer,
-    )
-    def post(self, request):
-        serializer = SubmitScoreSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        uuid = serializer.validated_data["uuid"]
-        score = serializer.validated_data["score"]
+class SortingGameHistory(APIView):
+    """Получить историю завершённых игр пользователя по `uuid`"""
 
-        if score is None:
-            return Response({"error": "Необходимо передать 'score'"}, status=status.HTTP_400_BAD_REQUEST)
+    def get(self, request):
+        if not request.user or not hasattr(request.user, "telegram_profile"):
+            return Response({"error": "Пользователь не авторизован"}, status=401)
 
-        user = get_object_or_404(TelegramUser, uuid=uuid)
+        telegram_user = request.user.telegram_profile
 
-        game_session = SortingGameSession.objects.create(user=user, score=score)
+        games = SortingGameSession.objects.filter(user=telegram_user).order_by("-created_at")
 
-        leaderboard_entry, created = Leaderboard.objects.get_or_create(
-            user=user,
-            defaults={"username": user.uuid, "score": score},
-        )
+        if not games.exists():
+            return Response({"message": "Нет игр"}, status=status.HTTP_404_NOT_FOUND)
 
-        if not created:
-            if score > leaderboard_entry.score:
-                leaderboard_entry.score = score
-                leaderboard_entry.save()
-
-        return Response(
-            {"message": "Очки сохранены", "game_id": game_session.id, "leaderboard_position": leaderboard_entry.score},
-            status=status.HTTP_200_OK
-        )
+        return Response({
+            "games": SortingGameSessionSerializer(games, many=True).data
+        }, status=status.HTTP_200_OK)

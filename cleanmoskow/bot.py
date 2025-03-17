@@ -14,14 +14,14 @@ from aiogram.fsm.context import FSMContext
 from geopy.distance import geodesic
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
-sys.path.append('/home/moskow/cleanmoskow')
+# sys.path.append('/home/moskow/cleanmoskow')
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "cleanmoskow.settings")
 
 django.setup()
 
-from api.models import MessageTemplate, User, Category, Points
-
+from api.models import MessageTemplate, Category, Points
+from accounts.models import User
 
 TOKEN = "7943017558:AAEFHuEPV8VcLdTVPbzeWVIJIAj0tSc6Lmg"
 bot = Bot(token=TOKEN)

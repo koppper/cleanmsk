@@ -1,5 +1,5 @@
 from django.db import models
-from api.models import TelegramUser
+from accounts.models import TelegramUser
 
 class SortingGameSession(models.Model):
     user = models.ForeignKey(TelegramUser, on_delete=models.CASCADE, related_name="game_sessions")

@@ -1,7 +1,7 @@
 from django.urls import path
-from .views import StartSortingGameSession, SubmitScore
+from .views import StartSortingGameSession, SortingGameHistory
 
 urlpatterns = [
     path("start/", StartSortingGameSession.as_view(), name="start_game"),
-    path("submit-score/", SubmitScore.as_view(), name="submit_score"),
+    path("history/", SortingGameHistory.as_view(), name="start_game"),
 ]

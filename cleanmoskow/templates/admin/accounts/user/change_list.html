@@ -1,0 +1,10 @@
+{% extends "admin/change_list.html" %}
+
+{% block content_title %}
+<h1>Users</h1>
+
+<div>
+    <p><strong>Всего пользователей:</strong> {{ total_users }}</p>
+    <p><strong>Пользователей с Telegram:</strong> {{ total_telegram_users }}</p>
+</div>
+{% endblock %}

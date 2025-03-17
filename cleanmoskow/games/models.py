@@ -1,6 +1,8 @@
 from django.db import models
-from api.models import TelegramUser
+from accounts.models import TelegramUser
+import re
 
+# CENSORED_WORDS = ["плохое_слово1", "плохое_слово2"]
 
 class QuizQuestions(models.Model):
     question = models.TextField(verbose_name="Вопрос")
@@ -18,13 +20,35 @@ class QuizQuestions(models.Model):
         verbose_name_plural = "Вопросы"
 
 
+class CensoredWord(models.Model):
+    word = models.CharField(max_length=255, unique=True, verbose_name="Запрещённое слово")
+
+    def __str__(self):
+        return self.word
+
+    class Meta:
+        verbose_name = "Цензурное слово"
+        verbose_name_plural = "Цензурные слова"
+
+
 class Leaderboard(models.Model):
     user = models.ForeignKey(TelegramUser, on_delete=models.CASCADE, null=True, blank=True)
     username = models.CharField(max_length=255)
     score = models.FloatField()
-    
+
+    def censor_username(self):
+        """Фильтруем username, заменяя запрещенные слова на звёздочки"""
+        censored_username = self.username
+        censored_words = CensoredWord.objects.values_list("word", flat=True)
+
+        for word in censored_words:
+            pattern = re.compile(re.escape(word), re.IGNORECASE)
+            censored_username = pattern.sub("*" * len(word), censored_username)
+
+        return censored_username
+
     def __str__(self):
-        return f"Лидерборд пользователя {self.user}"
+        return f"{self.censor_username()} - {self.score}"
     
     class Meta:
         verbose_name = "Лидерборд"
@@ -33,7 +57,6 @@ class Leaderboard(models.Model):
 
 
 class GameSession(models.Model):
-
     user = models.ForeignKey(TelegramUser, on_delete=models.CASCADE, null=True, blank=True)
     questions = models.JSONField()
     answered_questions = models.JSONField(default=list)

@@ -6,9 +6,9 @@ services:
     container_name: postgres_db
     restart: always
     environment:
-      POSTGRES_USER: cleanmoskow2
-      POSTGRES_PASSWORD: cleanmoskow2
-      POSTGRES_DB: cleanmoskow2
+      POSTGRES_USER: cleanmoskow
+      POSTGRES_PASSWORD: uAT2It40z8YMN4i
+      POSTGRES_DB: cleanmoskow
     ports:
       - "5433:5432"
     volumes:
@@ -18,7 +18,7 @@ services:
     build: .
     container_name: django_app
     restart: always
-    command: gunicorn cleanmoskow.wsgi:application --bind 0.0.0.0:8085 --workers 4
+    command: gunicorn cleanmoskow.wsgi:application --bind 0.0.0.0:8086 --workers 4
     depends_on: 
       - db
     env_file: cleanmoskow/.env
@@ -26,7 +26,7 @@ services:
       DEBUG: "False"
       PYTHONPATH: "/code"
     ports:
-      - "8085:8085"
+      - "8086:8086"
     volumes:
       - ./cleanmoskow:/code
       - ./static:/code/static

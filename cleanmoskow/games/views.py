@@ -1,14 +1,16 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
-from .models import QuizQuestions, GameSession, Leaderboard
-from api.models import TelegramUser
+from .models import QuizQuestions, GameSession, Leaderboard, CensoredWord
+from accounts.models import TelegramUser
 from .serializers import QuizQuestionsSerializer, LeaderboardSerializer, GameResultSerializer, AnswerQuestionSerializer, GameHistorySerializer, TelegramIdSerializer
-from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth import get_user_model
 from rest_framework import status
 from drf_yasg.utils import swagger_auto_schema
+import logging
 
+logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
+logger = logging.getLogger(__name__)
 
 class StartGameView(APIView):
     """Создаёт новую игровую сессию и выдаёт первый вопрос"""
@@ -16,24 +18,19 @@ class StartGameView(APIView):
     # permission_classes = [IsAuthenticated]
     @swagger_auto_schema(
         operation_description="Start a new session",
-        request_body=TelegramIdSerializer,
     )
     def post(self, request):
-        serializer = TelegramIdSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        uuid = serializer.validated_data["uuid"]
-        user = get_object_or_404(TelegramUser, uuid=uuid)
+        if not request.user or not hasattr(request.user, "telegram_profile"):
+            return Response({"error": "Пользователь не авторизован"}, status=401)
 
-
+        telegram_user = request.user.telegram_profile
+    
         questions = QuizQuestions.objects.order_by("?")[:5]
 
-        # serializer = QuizQuestionsSerializer(data=request.data)
         questions_data = QuizQuestionsSerializer(questions, many=True).data
-        # if questions_data.is_valid():
 
         session = GameSession.objects.create(
-            user=user,
+            user=telegram_user,
             questions=questions_data,
             current_question_index=0,
             correct_answers=0,
@@ -43,9 +40,10 @@ class StartGameView(APIView):
         )
         return Response({
             "session_id": session.id,
-            "user": user.uuid,
+            "user": telegram_user.uuid,
             "question": questions_data[0]
         })
+
 
 class AnswerQuestionView(APIView):
     """Проверяет ответ на конкретный вопрос, обновляет игровую сессию"""
@@ -60,17 +58,13 @@ class AnswerQuestionView(APIView):
         }
     )
     def post(self, request):
-        
         serializer = AnswerQuestionSerializer(data=request.data)
 
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        uuid = serializer.validated_data["uuid"]
         session_id = serializer.validated_data["session_id"]
         question_id = serializer.validated_data["question_id"]
         answer = serializer.validated_data["answer"]
-        user = get_object_or_404(TelegramUser, uuid=uuid)  # Находим пользователя по Telegram ID
-        print(f"Telegram id: {uuid} {user} {user.id}")
 
         print(f"🔹 Получен ответ: session_id={session_id}, question_id={question_id}, answer={answer}")
 
@@ -94,21 +88,25 @@ class AnswerQuestionView(APIView):
         question = get_object_or_404(QuizQuestions, id=question_id)
         is_correct = answer == question.correct_answer
         explanation = question.explanation
-
+        leaderboard_entry, created = Leaderboard.objects.get_or_create(
+            user=session.user,
+            defaults={"username": session.user.username, "score": 0}
+        )
         if is_correct:
             session.correct_answers += 1
+            leaderboard_entry.score += 5
 
         session.answered_questions.append(question_id)
         session.current_question_index += 1
+        leaderboard_entry.save()
+
         session.save()
 
         if session.current_question_index >= session.total_questions:
             session.finished = True
 
-            # Начисление баллов
-            score = session.correct_answers * 5 + 10
-
-            # Корректный расчёт результата
+            # score = session.correct_answers * 5 + 10
+            logger.info(f"sesssion total questions: {session.correct_answers} {session.total_questions}" )
             percentage = (session.correct_answers / session.total_questions) * 100
             if percentage < 50:
                 result = "Плохой"
@@ -117,12 +115,7 @@ class AnswerQuestionView(APIView):
             else:
                 result = "Отлично"
 
-            leaderboard_entry, created = Leaderboard.objects.get_or_create(
-                user=session.user,
-                defaults={"username": session.user.uuid, "score": 0}
-            )
-            
-            leaderboard_entry.score += score  # Обновляем общий счет
+            leaderboard_entry.score += 10
             leaderboard_entry.save()
             session.save()
 
@@ -137,7 +130,7 @@ class AnswerQuestionView(APIView):
             }, status=status.HTTP_200_OK)
 
         next_question = session.questions[session.current_question_index]
-        current_score = session.correct_answers * 5  # Текущий счет пользователя
+        current_score = session.correct_answers * 5
 
         return Response({
             "correct": is_correct,
@@ -150,65 +143,67 @@ class AnswerQuestionView(APIView):
 
 
 class QuizHistoryView(APIView):
-    """Получить историю завершенных игр пользователя"""
-    @swagger_auto_schema(
-        query_serializer=TelegramIdSerializer,
-    )
-    def get(self, request):
-        serializer = TelegramIdSerializer(data=request.query_params)  # Берем данные из query_params
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        uuid = serializer.validated_data["uuid"]
-        user = get_object_or_404(TelegramUser, uuid=uuid)  # Находим пользователя по Telegram ID
+    """Получить историю всех игр пользователя"""
 
-        sessions = GameSession.objects.filter(user=user, finished=True).order_by("-created_at")
+    def get(self, request):
+        if not request.user or not hasattr(request.user, "telegram_profile"):
+            return Response({"error": "Пользователь не авторизован"}, status=401)
+
+        telegram_user = request.user.telegram_profile
+
+        sessions = GameSession.objects.filter(user=telegram_user).order_by("-created_at")
 
         if not sessions.exists():
             return Response({"error": "Нет завершенных игр"}, status=status.HTTP_404_NOT_FOUND)
 
-        total_score = Leaderboard.objects.filter(user=user).first()
-        total_score = total_score.score if total_score else 0
+        leaderboard_entry = Leaderboard.objects.filter(user=telegram_user).first()
+        total_score = leaderboard_entry.score if leaderboard_entry else 0
+
+        user_rank = (
+            Leaderboard.objects
+            .filter(score__gt=total_score)
+            .count() + 1
+        ) if leaderboard_entry else None
 
         return Response({
             "total_score": total_score,
+            "user_rank": user_rank,
             "games": GameHistorySerializer(sessions, many=True).data
         }, status=status.HTTP_200_OK)
 
 
+
 class LeaderboardView(APIView):
     """Получить топ игроков с местами и текущим местом пользователя"""
-    @swagger_auto_schema(
-        query_serializer=TelegramIdSerializer,
-        )
+
     def get(self, request):
-        serializer = TelegramIdSerializer(data=request.query_params)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        uuid = serializer.validated_data["uuid"]
-        user = get_object_or_404(TelegramUser, uuid=uuid)
+        if not request.user or not hasattr(request.user, "telegram_profile"):
+            return Response({"error": "Пользователь не авторизован"}, status=401)
 
-        leaderboard = Leaderboard.objects.order_by("-score").values("user", "score")
+        telegram_user = request.user.telegram_profile
 
-        if not leaderboard:
-            return Response({"error": "Нет данных в лидерборде"}, status=status.HTTP_404_NOT_FOUND)
+        top_players = (
+            Leaderboard.objects.select_related("user")
+            .order_by("-score")[:10]
+        )
 
-        user_ids = [entry["user"] for entry in leaderboard]
-        users = TelegramUser.objects.filter(id__in=user_ids)
-        user_dict = {u.id: u.username for u in users}
+        user_score = Leaderboard.objects.filter(user=telegram_user).values_list("score", flat=True).first() or 0
+        user_rank = (
+            Leaderboard.objects.filter(score__gt=user_score).count() + 1
+        ) if user_score else None
 
         ranked_players = [
             {
                 "place": index + 1,
-                "username": user_dict.get(entry["user"], "Unknown"),  # Берём имя пользователя
-                "score": entry["score"]
+                "username": entry.censor_username(),
+                "score": entry.score
+
             }
-            for index, entry in enumerate(leaderboard)
+            for index, entry in enumerate(top_players)
         ]
 
-        # Находим место текущего пользователя
-        user_rank = next((player["place"] for player in ranked_players if player["username"] == user.username), None)
-
         return Response({
-            "top_players": ranked_players[:10],
-            "user_rank": user_rank
+            "top_players": ranked_players,
+            "user_rank": user_rank,
+            "score": user_score,
         }, status=status.HTTP_200_OK)

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import MessageTemplate, User, Points, Category, TelegramUser, Advice
+from .models import MessageTemplate, Points, Category, Advice
 import json
 from django.shortcuts import render
 from django.urls import path, reverse
@@ -14,36 +14,9 @@ class MessageTemplateAdmin(admin.ModelAdmin):
     search_fields = ('name', 'text')
 
 
-@admin.register(User)
-class UserAdmin(admin.ModelAdmin):
-    list_display = ('username', 'telegram_id','created_at', 'location_requests_count')
-    search_fields = ('telegram_id',)
-
-
-class TelegramUserAdmin(admin.ModelAdmin):
-    model = TelegramUser
-    list_display = ('user', 'telegram_id', 'uuid', "first_name", "last_name", "created_at")
-    list_filter = ('created_at', ('user', admin.BooleanFieldListFilter))
-    search_fields = ('telegram_id', 'uuid', "first_name", "last_name")
-    ordering = ('-created_at',)
-
-    def changelist_view(self, request, extra_context=None):
-        if extra_context is None:
-            extra_context = {}
-
-        total_telegram_users = TelegramUser.objects.count()
-        users_with_profiles = TelegramUser.objects.filter(user__isnull=False).count()
-
-        extra_context['total_telegram_users'] = total_telegram_users
-        extra_context['users_with_profiles'] = users_with_profiles
-
-        return super().changelist_view(request, extra_context=extra_context)
-
-
-admin.site.register(TelegramUser, TelegramUserAdmin)
-
+@admin.register(Points)
 class PointsAdmin(admin.ModelAdmin):
-    list_display = ("title", "address", "latitude", "longitude")
+    list_display = ("title", "address", "categories")
     actions = ["import_json"]
     change_list_template = 'admin/change_list.html'
 
@@ -90,11 +63,9 @@ class PointsAdmin(admin.ModelAdmin):
                         close_time = entry["closes"][0] if entry["closes"] else "00:00"
                         business_hours[weekdays[dow]] = f"{open_time} - {close_time}"
 
-                    # Находим категорию (если есть)
                     category_name = point["categories"][0] if point["categories"] else None
                     category = Category.objects.filter(name=category_name).first() if category_name else None
 
-                    # Создаем объект Points
                     Points.objects.create(
                         latitude=latitude,
                         longitude=longitude,
@@ -125,7 +96,6 @@ class CategoryAdmin(admin.ModelAdmin):
     search_fields = ("name", "name_ru")
     
     
-admin.site.register(Points, PointsAdmin)
 
 
 @admin.register(Advice)

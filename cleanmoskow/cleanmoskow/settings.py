@@ -40,10 +40,13 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'drf_yasg',
     'rest_framework',
-
+    'corsheaders',
+    'oauth2_provider',
+    'rest_framework.authtoken',
     'api',
     'games',
-    'sorting_game'
+    'sorting_game',
+    'accounts',
 ]
 
 MIDDLEWARE = [
@@ -53,9 +56,11 @@ MIDDLEWARE = [
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'accounts.middleware.TokenAuthMiddleware',
 ]
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
@@ -86,9 +91,9 @@ WSGI_APPLICATION = 'cleanmoskow.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'cleanmoskow2',  # Имя базы данных
-        'USER': 'cleanmoskow2',     # Пользователь
-        'PASSWORD': 'cleanmoskow2',  # Пароль
+        'NAME': 'cleanmoskow',
+        'USER': 'cleanmoskow',
+        'PASSWORD': 'uAT2It40z8YMN4i',
         'HOST': 'db',
         'PORT': '5432',
     }
@@ -140,7 +145,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # STATIC_ROOT = "/home/moskow/cleanmoskow/static/"
 
 
-AUTH_USER_MODEL = 'api.User'
+AUTH_USER_MODEL = 'accounts.User'
 
 
 # MEDIA_URL = "/media/"
@@ -152,8 +157,48 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
-STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, 'cleanmoskow', 'static'),
-]
+STATICFILES_DIRS = []
+
 
 TELEGRAM_BOT_TOKEN = "7943017558:AAEFHuEPV8VcLdTVPbzeWVIJIAj0tSc6Lmg"
+
+SWAGGER_SETTINGS = {
+    "USE_SESSION_AUTH": False,
+    # "SECURITY_DEFINITIONS": {
+    #     "api_key": {"type": "apiKey", "in": "header", "name": "Authorization"}
+    # },
+    "DEFAULT_API_URL": "https://sorting-clean-moscow.ru"
+}
+
+CORS_ALLOWED_ORIGINS = [
+    "https://sorting-clean-moscow.ru",
+    "https://www.sorting-clean-moscow.ru",
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://sorting-clean-moscow.ru",
+    "https://www.sorting-clean-moscow.ru",
+]
+
+CORS_ALLOW_CREDENTIALS = True
+
+# REST_FRAMEWORK = {
+#     'DEFAULT_AUTHENTICATION_CLASSES': (
+#         'oauth2_provider.contrib.rest_framework.OAuth2Authentication',
+#     ),
+#     'DEFAULT_PERMISSION_CLASSES': (
+#         'rest_framework.permissions.IsAuthenticated',
+#     ),
+# }
+
+AUTHENTICATION_BACKENDS = (
+    'oauth2_provider.backends.OAuth2Backend',
+    'django.contrib.auth.backends.ModelBackend',
+)
+
+OAUTH2_PROVIDER = {
+    'ACCESS_TOKEN_EXPIRE_SECONDS': 3600,
+    'AUTHORIZATION_CODE_EXPIRE_SECONDS': 600,
+    'OAUTH2_BACKEND_CLASS': 'oauth2_provider.oauth2_backends.JSONOAuthLibCore',
+    'SCOPES': {'read': 'Чтение данных', 'write': 'Запись данных'},
+}
