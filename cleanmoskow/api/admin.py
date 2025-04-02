@@ -49,7 +49,10 @@ for model in MODELS_TO_UNREGISTER:
 @admin.register(Points)
 class PointsAdmin(admin.ModelAdmin):
     list_display = ("title", "address", "categories")
+    search_fields = ("title", "address", "categories")
+
     actions = ["import_json"]
+
     change_list_template = 'admin/api/points/change_list.html'
 
     def get_urls(self):
