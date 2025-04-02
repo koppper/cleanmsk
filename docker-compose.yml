@@ -39,7 +39,35 @@ services:
     depends_on: 
       - django
     env_file: cleanmoskow/.env
-    command: python bot.py
+    command: python bot/main.py
+    volumes:
+      - ./cleanmoskow:/code
+
+  redis:
+    image: redis:latest
+    container_name: redis
+    restart: always
+    ports:
+      - "6379:6379"
+
+  celery:
+    build: .
+    container_name: celery_worker
+    restart: always
+    command: celery -A cleanmoskow worker --loglevel=info
+    depends_on:
+      - redis
+      - django
+    volumes:
+      - ./cleanmoskow:/code
+  celery_beat:
+    build: .
+    container_name: celery_beat
+    restart: always
+    command: celery -A cleanmoskow beat --loglevel=info
+    depends_on:
+      - redis
+      - django
     volumes:
       - ./cleanmoskow:/code
 

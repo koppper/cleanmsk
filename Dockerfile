@@ -15,6 +15,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Копируем весь проект в рабочую директорию
 COPY cleanmoskow /code/
+RUN mkdir -p /app/logs
 
 # Указываем переменную окружения для Django
 ENV DJANGO_SETTINGS_MODULE=cleanmoskow.settings

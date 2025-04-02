@@ -2,6 +2,8 @@ from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin, Group, Permission
 import uuid
 from django.db import models
+from django.utils.timezone import now
+from django.contrib.postgres.fields import ArrayField
 
 
 class CustomUserManager(BaseUserManager):
@@ -57,6 +59,34 @@ class TelegramUser(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     onboarding_seen = models.BooleanField(default=False)
     onboarding_second_seen = models.BooleanField(default=False)
+    answered_questions_ids = ArrayField(
+        base_field=models.IntegerField(),
+        default=list,
+        blank=True, null=True,
+        verbose_name="ID вопросов, на которые пользователь уже ответил"
+    )
+    def __str__(self):
+        return f"{self.user}"
+
+    class Meta:
+        verbose_name = "Телеграм пользователь"
+        verbose_name_plural = "Телеграм пользователи"
+
+
+class UserActivity(models.Model):
+    ACTIONS = [
+        ('quiz_start', 'Запуск квиза'),
+        ('game_start', 'Запуск игры'),
+        ('location_request', 'Запрос геолокации'),
+        ('faq_open', 'Открытие FAQ'),
+    ]
+    user = models.ForeignKey("User", on_delete=models.CASCADE)
+    action = models.CharField(max_length=100, choices=ACTIONS)
+    timestamp = models.DateTimeField(default=now)
 
     def __str__(self):
-        return f"{self.user} ({self.telegram_id})"
+        return f"{self.user} - {self.get_action_display()} - {self.timestamp}"
+
+    class Meta:
+        verbose_name = "Активность пользователя"
+        verbose_name_plural = "Активности пользователей"

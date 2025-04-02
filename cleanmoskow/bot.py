@@ -23,7 +23,7 @@ django.setup()
 from api.models import MessageTemplate, Category, Points
 from accounts.models import User
 
-TOKEN = "7943017558:AAEFHuEPV8VcLdTVPbzeWVIJIAj0tSc6Lmg"
+TOKEN = "7546363316:AAEtCZQrvrAbsOFlRm6bd30r4Xjatlcw4_I"
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
@@ -56,22 +56,17 @@ async def start(message: types.Message):
     else:
         text = "С возвращением! 👋"
 
-    print("lol")  # Для отладки, убедись, что этот print вообще выполняется
-    
     template_text = await get_message_template("start_message")
 
-    # Клавиатура для старта
     kb = ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text="Поиск пунктов сбора отходов")],
-            [KeyboardButton(text="Mini App")]
+            # [KeyboardButton(text="Mini App")]
         ],
         resize_keyboard=True
     )
 
     await message.answer(f"{text}\n\n{template_text}", reply_markup=kb)
-
-
 
 
 @dp.message(lambda msg: msg.text in ["Поиск пунктов сбора отходов", "Выбрать другой пункт"])

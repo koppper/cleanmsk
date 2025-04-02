@@ -2,7 +2,10 @@
 
 {% block content_title %}
   <h1>Сортировочные игры</h1>
-<div style="margin-bottom: 15px; font-size: 16px;">
-  <p><strong>Всего сортировочных игр: {{ total_games }}  </strong> {{ total_telegram_users }}</p>
+<div style="margin-bottom: 15px; font-size: 13px;">
+  <p><strong>Завершенные игры: {{ total_games }}  </strong> {{ total_telegram_users }}</p>
+  <p><strong>Начавшиеся игры:</strong> {{ started_users }}</p>
+  <p><strong>Количество участников:</strong> {{ user_count }}</p>
+  <p><strong>Процент завершения:</strong> {{ completion_rate }}%</p>
 </div>
 {% endblock %}

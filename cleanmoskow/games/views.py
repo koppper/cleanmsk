@@ -8,12 +8,18 @@ from django.contrib.auth import get_user_model
 from rest_framework import status
 from drf_yasg.utils import swagger_auto_schema
 import logging
+from accounts.utils import log_user_action
+
 
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
 
+@method_decorator(csrf_exempt, name='dispatch')
 class StartGameView(APIView):
     """Создаёт новую игровую сессию и выдаёт первый вопрос"""
+    # authentication_classes = [] 
 
     # permission_classes = [IsAuthenticated]
     @swagger_auto_schema(
@@ -22,11 +28,19 @@ class StartGameView(APIView):
     def post(self, request):
         if not request.user or not hasattr(request.user, "telegram_profile"):
             return Response({"error": "Пользователь не авторизован"}, status=401)
+        log_user_action(request, "quiz_start")
 
         telegram_user = request.user.telegram_profile
-    
-        questions = QuizQuestions.objects.order_by("?")[:5]
+        already_answered_ids = telegram_user.answered_questions_ids or []
+        available_questions = QuizQuestions.objects.exclude(id__in=already_answered_ids)
 
+        # questions = QuizQuestions.objects.order_by("?")[:5]
+        # Если осталось меньше 5 — просто берём любые 5 случайных из всей базы
+        if available_questions.count() < 5:
+            questions = QuizQuestions.objects.order_by("?")[:5]
+            telegram_user.answered_questions_ids = []
+        else:
+            questions = available_questions.order_by("?")[:5]
         questions_data = QuizQuestionsSerializer(questions, many=True).data
 
         session = GameSession.objects.create(
@@ -45,8 +59,10 @@ class StartGameView(APIView):
         })
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class AnswerQuestionView(APIView):
     """Проверяет ответ на конкретный вопрос, обновляет игровую сессию"""
+    # authentication_classes = [] 
 
     @swagger_auto_schema(
         operation_description="Ответ на вопрос викторины",
@@ -86,16 +102,26 @@ class AnswerQuestionView(APIView):
             }, status=status.HTTP_400_BAD_REQUEST)
 
         question = get_object_or_404(QuizQuestions, id=question_id)
-        is_correct = answer == question.correct_answer
+        is_correct = answer is not None and answer == question.correct_answer
         explanation = question.explanation
         leaderboard_entry, created = Leaderboard.objects.get_or_create(
             user=session.user,
             defaults={"username": session.user.username, "score": 0}
         )
+        question.total_answers += 1
+
         if is_correct:
             session.correct_answers += 1
+            question.correct_answers += 1
             leaderboard_entry.score += 5
+        question.save()
 
+        telegram_user = session.user
+
+        if question_id not in telegram_user.answered_questions_ids:
+            telegram_user.answered_questions_ids.append(question_id)
+            telegram_user.save()
+    
         session.answered_questions.append(question_id)
         session.current_question_index += 1
         leaderboard_entry.save()
@@ -109,23 +135,26 @@ class AnswerQuestionView(APIView):
             logger.info(f"sesssion total questions: {session.correct_answers} {session.total_questions}" )
             percentage = (session.correct_answers / session.total_questions) * 100
             if percentage < 50:
-                result = "Плохой"
+                result = "Плохо"
             elif percentage < 80:
                 result = "Хорошо"
             else:
                 result = "Отлично"
-
+            
             leaderboard_entry.score += 10
+
             leaderboard_entry.save()
             session.save()
-
+            total_score = (session.correct_answers * 5) + 10
             return Response({
                 "correct": is_correct,
                 "game_over": True,
-                "score": session.correct_answers * 5,
+                # "score": session.correct_answers * 5,
                 "total_questions": session.total_questions,
                 "result": result,
-                "total_score": leaderboard_entry.score,
+                "total_score": total_score,
+                "correct_answer": question.correct_answer,
+
                 **({"explanation": explanation} if explanation else {})
             }, status=status.HTTP_200_OK)
 
@@ -137,6 +166,7 @@ class AnswerQuestionView(APIView):
             "game_over": False,
             "question": next_question,
             "current_score": current_score,
+            "correct_answer": question.correct_answer,
 
             **({"explanation": explanation} if explanation else {})
         }, status=status.HTTP_200_OK)
@@ -172,7 +202,6 @@ class QuizHistoryView(APIView):
         }, status=status.HTTP_200_OK)
 
 
-
 class LeaderboardView(APIView):
     """Получить топ игроков с местами и текущим местом пользователя"""
 
@@ -184,7 +213,7 @@ class LeaderboardView(APIView):
 
         top_players = (
             Leaderboard.objects.select_related("user")
-            .order_by("-score")[:10]
+            .order_by("-score")
         )
 
         user_score = Leaderboard.objects.filter(user=telegram_user).values_list("score", flat=True).first() or 0
@@ -203,7 +232,7 @@ class LeaderboardView(APIView):
         ]
 
         return Response({
-            "top_players": ranked_players,
+            "players": ranked_players,
             "user_rank": user_rank,
             "score": user_score,
         }, status=status.HTTP_200_OK)

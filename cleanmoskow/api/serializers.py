@@ -1,7 +1,15 @@
 from rest_framework import serializers
-from .models import Advice
+from .models import Advice, AdviceCategory
 
 class AdviceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Advice
-        fields = ["id", "title", "description", "image", "created_at"]
+        fields = ["id", "description", "order", "created_at"]
+
+
+class AdviceByCategorySerializer(serializers.ModelSerializer):
+    advices = AdviceSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = AdviceCategory
+        fields = ["id", "name",  "image", "advices"]

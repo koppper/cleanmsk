@@ -38,3 +38,11 @@ yarl==1.15.2
 whitenoise
 django-cors-headers==4.4.0
 django-oauth-toolkit
+celery
+redis
+django-celery-results
+django-celery-beat
+aiogram
+python-telegram-bot<20
+django-admin-rangefilter
+django-ckeditor

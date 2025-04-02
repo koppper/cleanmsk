@@ -11,6 +11,19 @@ class QuizQuestions(models.Model):
     explanation = models.TextField(null=True, blank=True)
     tip_link = models.URLField(null=True, blank=True)
     image = models.ImageField(null=True, blank=True, upload_to="images/")
+    difficulty = models.CharField(
+        max_length=20, 
+        choices=[("easy", "Легкий"), ("medium", "Средний"), ("hard", "Трудный")],
+        default="medium",
+        verbose_name="Сложность"
+    )
+    total_answers = models.IntegerField(default=0, verbose_name="Всего ответов")
+    correct_answers = models.IntegerField(default=0, verbose_name="Правильных ответов")
+
+    def correct_percentage(self):
+        if self.total_answers == 0:
+            return "0%"
+        return f"{round((self.correct_answers / self.total_answers) * 100)}%"
 
     def __str__(self):
         return self.question
@@ -48,7 +61,7 @@ class Leaderboard(models.Model):
         return censored_username
 
     def __str__(self):
-        return f"{self.censor_username()} - {self.score}"
+        return f"{self.censor_username()}"
     
     class Meta:
         verbose_name = "Лидерборд"
@@ -71,5 +84,5 @@ class GameSession(models.Model):
     
     
     class Meta:
-        verbose_name = "Игровая сессия"
-        verbose_name_plural = "Игровые сессии"
+        verbose_name = "Игровая сессия квиза"
+        verbose_name_plural = "Игровые сессии квизов"

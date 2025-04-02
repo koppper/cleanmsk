@@ -1,8 +1,10 @@
 {% extends "admin/change_list.html" %}
 
 {% block content_title %}
-  <h1>Игровые сессии</h1>
-<div style="margin-bottom: 15px; font-size: 16px;">
-  <p><strong>Всего игр: {{ total_games }}  </strong></p>
-</div>
+  <h1>Игровые сессии квизов</h1>
+  <div style="margin-bottom: 15px; font-size: 16px;">
+    <p><strong>Всего игр:</strong> {{ total_games }}</p>
+    <p><strong>Количество участников:</strong> {{ started_users }}</p>
+    <p><strong>Процент завершения:</strong> {{ completion_rate }}%</p>
+  </div>
 {% endblock %}

@@ -47,6 +47,9 @@ INSTALLED_APPS = [
     'games',
     'sorting_game',
     'accounts',
+    'django_celery_beat',
+    'rangefilter',
+    'ckeditor',
 ]
 
 MIDDLEWARE = [
@@ -55,7 +58,7 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
+    # 'django.middleware.csrf.CsrfViewMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
@@ -122,7 +125,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/4.2/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'ru'
 
 TIME_ZONE = 'Europe/Moscow'
 
@@ -170,35 +173,54 @@ SWAGGER_SETTINGS = {
     "DEFAULT_API_URL": "https://sorting-clean-moscow.ru"
 }
 
-CORS_ALLOWED_ORIGINS = [
-    "https://sorting-clean-moscow.ru",
-    "https://www.sorting-clean-moscow.ru",
-]
+# CORS_ALLOWED_ORIGINS = [
+#     "https://sorting-clean-moscow.ru",
+#     "https://www.sorting-clean-moscow.ru",
+# ]
+CORS_ALLOW_ALL_ORIGINS = True  # Разрешить все домены
 
 CSRF_TRUSTED_ORIGINS = [
     "https://sorting-clean-moscow.ru",
     "https://www.sorting-clean-moscow.ru",
+    "https://chistaya-moskva.vercel.app"
 ]
 
 CORS_ALLOW_CREDENTIALS = True
 
-# REST_FRAMEWORK = {
-#     'DEFAULT_AUTHENTICATION_CLASSES': (
-#         'oauth2_provider.contrib.rest_framework.OAuth2Authentication',
-#     ),
-#     'DEFAULT_PERMISSION_CLASSES': (
-#         'rest_framework.permissions.IsAuthenticated',
-#     ),
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'oauth2_provider.contrib.rest_framework.OAuth2Authentication',
+        'rest_framework.authentication.TokenAuthentication',
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+    ),
+}
+
+
+# # dsfdsfDSKFKLJDSKFJKDLSFJKDSJFKLDSJFLK NNN  эээ
+# AUTHENTICATION_BACKENDS = (
+#     'oauth2_provider.backends.OAuth2Backend',
+#     'django.contrib.auth.backends.ModelBackend',
+# )
+
+# OAUTH2_PROVIDER = {
+#     'ACCESS_TOKEN_EXPIRE_SECONDS': 3600,
+#     'AUTHORIZATION_CODE_EXPIRE_SECONDS': 600,
+#     'OAUTH2_BACKEND_CLASS': 'oauth2_provider.oauth2_backends.JSONOAuthLibCore',
+#     'SCOPES': {'read': 'Чтение данных', 'write': 'Запись данных'},
 # }
 
-AUTHENTICATION_BACKENDS = (
-    'oauth2_provider.backends.OAuth2Backend',
-    'django.contrib.auth.backends.ModelBackend',
-)
+CELERY_BROKER_URL = 'redis://redis:6379/0'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_BACKEND = 'redis://redis:6379/0'
 
-OAUTH2_PROVIDER = {
-    'ACCESS_TOKEN_EXPIRE_SECONDS': 3600,
-    'AUTHORIZATION_CODE_EXPIRE_SECONDS': 600,
-    'OAUTH2_BACKEND_CLASS': 'oauth2_provider.oauth2_backends.JSONOAuthLibCore',
-    'SCOPES': {'read': 'Чтение данных', 'write': 'Запись данных'},
-}
+CELERY_IMPORTS = ("api.tasks",)
+
+CELERY_TIMEZONE = 'Europe/Moscow'
+CELERY_ENABLE_UTC = True
+CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers.DatabaseScheduler'
+
+
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 10000

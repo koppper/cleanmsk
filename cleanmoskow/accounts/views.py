@@ -176,18 +176,29 @@ class AuthAPIView(APIView):
 
 #         return response
 
+from games.models import Leaderboard
 
 class UserProfileView(APIView):
     """Получение данных текущего пользователя"""
+    
     def get(self, request):
         if not request.user or not hasattr(request.user, "telegram_profile"):
             return Response({"error": "Пользователь не авторизован"}, status=401)
 
         user = request.user
+        leaderboard_entry = Leaderboard.objects.filter(user=user.telegram_profile).first()
+
         return Response({
             "id": user.id,
             "username": user.username,
             "telegram_id": user.telegram_profile.telegram_id,
+            "leaderboard": {
+                "score": leaderboard_entry.score if leaderboard_entry else None,
+                "place": (
+                    Leaderboard.objects.filter(score__gt=leaderboard_entry.score).count() + 1
+                    if leaderboard_entry else None
+                )
+            }
         })
 
 

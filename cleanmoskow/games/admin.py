@@ -9,6 +9,7 @@ from django import forms
 class LeaderboardAdmin(admin.ModelAdmin):
     list_display = ("id", "user", "username", "score")
     search_fields = ("user",)
+import ast
 
 
 class QuizQuestionsAdminForm(forms.ModelForm):
@@ -22,17 +23,32 @@ class QuizQuestionsAdminForm(forms.ModelForm):
         fields = "__all__"
 
     def clean_answers(self):
-        """Преобразуем текстовые ответы в JSON-список"""
-        data = self.cleaned_data["answers"].strip().split("\n")
-        return [answer.strip() for answer in data if answer.strip()]
+        raw_data = self.cleaned_data["answers"]
 
+        # Если уже список — просто вернуть его
+        if isinstance(raw_data, list):
+            return raw_data
+
+        try:
+            # Попробовать распарсить как JSON-строку или питоновский список
+            parsed = ast.literal_eval(raw_data)
+            if isinstance(parsed, list) and all(isinstance(x, str) for x in parsed):
+                return parsed
+        except (ValueError, SyntaxError):
+            pass
+
+        # Иначе — обычная обработка строки
+        lines = raw_data.strip().split("\n")
+        return [line.strip() for line in lines if line.strip()]
 
 @admin.register(QuizQuestions)
 class QuizQuestionsAdmin(admin.ModelAdmin):
     form = QuizQuestionsAdminForm
-    list_display = ("id", "question", "correct_answer", "explanation", "tip_link")
+    list_display = ("id", "question", "correct_answer", "explanation", "tip_link", "correct_percentage")
     search_fields = ("question",)
-
+    def correct_percentage(self, obj):
+        return obj.correct_percentage()
+    correct_percentage.short_description = "Процент правильных ответов"
 
 @admin.register(GameSession)
 class GameSessionAdmin(admin.ModelAdmin):
@@ -48,9 +64,20 @@ class GameSessionAdmin(admin.ModelAdmin):
         if extra_context is None:
             extra_context = {}
 
-        extra_context['total_games'] = GameSession.objects.count()
+        total_games = GameSession.objects.count()
+        started_users = GameSession.objects.exclude(user=None).values('user').count()
+        finished_count = GameSession.objects.filter(finished=True).values('user').count()
+
+        completion_rate = round((finished_count / started_users * 100), 2) if started_users else 0
+
+        extra_context.update({
+            'total_games': total_games,
+            'started_users': started_users,
+            'completion_rate': completion_rate,
+        })
 
         return super().changelist_view(request, extra_context=extra_context)
+
 
     @admin.display(description="Вопросы")
     def formatted_question(self, obj):

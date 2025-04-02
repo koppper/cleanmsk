@@ -1,0 +1,18 @@
+2025-03-26 19:19:52,737 - django.request - ERROR - Internal Server Error: /api/games/quiz/answer/
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.8/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/usr/local/lib/python3.8/site-packages/django/utils/deprecation.py", line 133, in __call__
+    response = self.process_request(request)
+  File "/code/accounts/middleware.py", line 56, in process_request
+    logger.info(f"✅ Пользователь авторизован: {request.user}")
+AttributeError: 'NoneType' object has no attribute 'info'
+2025-03-26 19:20:25,913 - django.request - ERROR - Internal Server Error: /api/.git/config
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.8/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+  File "/usr/local/lib/python3.8/site-packages/django/utils/deprecation.py", line 133, in __call__
+    response = self.process_request(request)
+  File "/code/accounts/middleware.py", line 43, in process_request
+    logger.warning("❌ Токен отсутствует в куках и заголовке Authorization")
+AttributeError: 'NoneType' object has no attribute 'warning'

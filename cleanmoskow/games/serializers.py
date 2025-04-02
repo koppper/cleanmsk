@@ -5,7 +5,7 @@ from .models import QuizQuestions, Leaderboard, GameSession
 class QuizQuestionsSerializer(serializers.ModelSerializer):
     class Meta:
         model = QuizQuestions
-        fields = ["id", "question", "answers"]
+        fields = ["id", "question", "answers", "image"]
 
 
 class LeaderboardSerializer(serializers.ModelSerializer):
@@ -25,7 +25,7 @@ class GameSessionSerializer(serializers.ModelSerializer):
 class AnswerQuestionSerializer(serializers.Serializer):
     session_id = serializers.IntegerField(required=True, help_text="ID игровой сессии")
     question_id = serializers.IntegerField(required=True, help_text="ID вопроса, на который даётся ответ")
-    answer = serializers.IntegerField(required=True, help_text="Выбранный вариант ответа (индекс)")
+    answer = serializers.IntegerField(allow_null=True, required=False, help_text="Выбранный вариант ответа (индекс)")
 
 
 class TelegramIdSerializer(serializers.Serializer):
@@ -44,7 +44,7 @@ class GameResultSerializer(serializers.ModelSerializer):
         """Формула оценки результата"""
         percentage = (obj.correct_answers / obj.total_questions) * 100
         if percentage < 50:
-            return "Плохой"
+            return "Плохо"
         elif percentage < 80:
             return "Хорошо"
         return "Отлично"

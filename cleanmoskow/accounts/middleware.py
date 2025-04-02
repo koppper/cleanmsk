@@ -2,43 +2,55 @@ from django.utils.deprecation import MiddlewareMixin
 from django.http import JsonResponse
 from oauth2_provider.models import AccessToken
 from django.utils.timezone import now
-from rest_framework import status
 import logging
-from rest_framework.response import Response
 
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
+
 class TokenAuthMiddleware(MiddlewareMixin):
-    """Middleware для авторизации через access_token из cookies"""
+    """Middleware для авторизации через access_token из cookies или заголовка Authorization"""
 
     def process_request(self, request):
+
         exempt_paths = [
-            "/admin/",
-            "/swagger",
-            "/accounts/auth/"
+            "/api/admin/",
+            "/api/swagger",
+            "/api/accounts/auth/"
         ]
 
-        # Если путь начинается с "/admin/", не выполняем проверку токена
+        # Логируем заголовки запроса
+
+        # Пропускаем проверку для определённых путей
         if any(request.path.startswith(path) for path in exempt_paths):
             return None  
 
+        # 🛠 Сначала пробуем достать токен из куков
         token = request.COOKIES.get("access_token")
-        logger.info(f"token: {token}")
 
+        # 🛠 Если токена нет в куках, пробуем достать из заголовка Authorization
         if not token:
-            logger.info(f"if not token:: {token}")
+            auth_header = request.headers.get("Authorization")
+            if auth_header and auth_header.startswith("Bearer "):
+                token = auth_header.split(" ")[1]  # Берём сам токен без "Bearer"
+                logger.info(f"🔑 Токен найден в Authorization-заголовке: {token}")
 
-            # request.user = None 
-            # return None
+        # ❌ Если токена всё ещё нет — отказ в доступе
+        if not token:
+            logger.warning("❌ Токен отсутствует в куках и заголовке Authorization")
             return JsonResponse({"error": "Требуется авторизация"}, status=401)
 
+        # 🛠 Проверяем токен в базе
         try:
             access_token = AccessToken.objects.get(token=token)
             if access_token.expires < now():
+                logger.warning("❌ Токен истёк")
                 return JsonResponse({"error": "Токен истёк"}, status=401)
 
-            request.user = access_token.user
-            if "Authorization" not in request.headers:
-                request.META["HTTP_AUTHORIZATION"] = f"Bearer {token}"
+            request.user = access_token.user  # Авторизуем пользователя
+            request.META["HTTP_AUTHORIZATION"] = f"Bearer {token}"  # Добавляем токен в META
+
+            logger.info(f"✅ Пользователь авторизован: {request.user}")
+
         except AccessToken.DoesNotExist:
+            logger.warning("❌ Неверный токен")
             return JsonResponse({"error": "Неверный токен"}, status=401)

@@ -4,6 +4,7 @@ from django.urls import path, re_path, include
 from django.conf import settings
 from django.contrib import admin
 from django.conf.urls.static import static
+from rest_framework import permissions
 
 schema_view = get_schema_view(
     openapi.Info(
@@ -12,21 +13,23 @@ schema_view = get_schema_view(
         description="Документация для API",
     ),
     public=True,
+   permission_classes=[permissions.AllowAny],
+
 )
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
-    path('accounts/', include('accounts.urls')),
-    path('games/', include('games.urls')),
-    path('sorting-games/', include('sorting_game.urls')),
-    path('api/', include('api.urls'))
+    path('api/admin/', admin.site.urls),
+    path('api/accounts/', include('accounts.urls')),
+    path('api/games/', include('games.urls')),
+    path('api/sorting-games/', include('sorting_game.urls')),
+    path('api/api/', include('api.urls'))
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 
 if settings.DEBUG:
     urlpatterns += [
         re_path(r'^swagger(?P<format>\.json|\.yaml)$', schema_view.without_ui(cache_timeout=0), name='schema-json'),
-        path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
-        path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
+        path('api/swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
+        path('api/redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
     ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
