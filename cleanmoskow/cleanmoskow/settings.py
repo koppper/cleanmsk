@@ -224,3 +224,7 @@ CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers.DatabaseScheduler'
 
 
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 10000
+
+OAUTH2_PROVIDER = {
+    "ACCESS_TOKEN_EXPIRE_SECONDS": 3600,
+}
