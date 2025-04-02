@@ -93,15 +93,16 @@ async def handle_location(message: types.Message, state: FSMContext):
             schedule_text += f"{day}: {hours}\n"
 
         await message.answer_location(latitude=nearest_point.latitude, longitude=nearest_point.longitude)
-        title = f"{nearest_point.title}\n" if nearest_point.title else ""
-        link = f"Ссылка: {nearest_point.link}\n" if nearest_point.link else ""
 
         response = (
             f"Адрес: {nearest_point.address}\n"
-            f"{title}"
-            f"{link}"
+            f"{nearest_point.title}\n"
             f"Принимается старая техника: {nearest_point.description}\n"
             f"Часы работы:\n"
+            # f"📍 {nearest_point.title}\n"
+            # f"🏠 Адрес: {nearest_point.address}\n"
+            # f"ℹ️ Описание: {nearest_point.description}\n"
+            # f"📏 Расстояние: {distance:.2f} км\n"
             f"{schedule_text}"
         )
 
@@ -210,17 +211,19 @@ async def near_locations(message: types.Message, state: FSMContext):
             for day, hours in point.businesHoursState.items():
                 schedule_text += f"{day}: {hours}\n"
 
-            title = f"{point.title}\n" if point.title else ""
-            link = f"Ссылка: {point.link}\n" if point.link else ""
-
             response_text += (
+                # f"🏠 {point.title}\n"
+                # f"📍 Адрес: {point.address}\n"
+                # f"ℹ️ Описание: {point.description}\n"
+                # f"📏 Расстояние: {distance:.2f} км\n"
                 f"Адрес: {point.address}\n"
-                f"{title}"
-                f"{link}"
+                f"{point.title}\n"
                 f"Принимается старая техника: {point.description}\n"
                 f"Часы работы:\n"
-                f"{schedule_text}"
+                # f"Пункт работает:\n"
+                f"{schedule_text}\n\n"
             )
+
         kb = await get_keyboard(["choose_other_point_button_text"])
 
         user = await sync_to_async(User.objects.get)(telegram_id=message.from_user.id)

@@ -41,7 +41,6 @@ class Points(models.Model):
     latitude = models.FloatField(verbose_name="Широта")
     longitude = models.FloatField(verbose_name="Долгота")
     address = models.TextField(verbose_name="Адрес")
-    link = models.URLField(null=True, blank=True, verbose_name="Ссылка")
     title = models.CharField(max_length=255, verbose_name="Название точки")
     description = models.TextField(blank=True, null=True, verbose_name="Описание")
     restricted = models.BooleanField(default=False, verbose_name="Ограниченный доступ")

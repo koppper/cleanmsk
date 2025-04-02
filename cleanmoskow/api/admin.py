@@ -46,17 +46,6 @@ for model in MODELS_TO_UNREGISTER:
     except admin.sites.NotRegistered:
         pass
 
-def safe_decode(text):
-    try:
-        if isinstance(text, str):
-            # Если содержит \u — возможно, это Unicode-escape
-            if "\\u" in text:
-                return text.encode().decode("unicode_escape")
-        return text
-    except Exception:
-        return text
-
-
 @admin.register(Points)
 class PointsAdmin(admin.ModelAdmin):
     list_display = ("title", "address", "categories")
@@ -146,8 +135,7 @@ class PointsAdmin(admin.ModelAdmin):
                         description=point.get("pointDescription", ""),
                         restricted=point.get("restricted", False),
                         categories=category,
-                        businesHoursState=business_hours,
-                        link=point.get("link", "")
+                        businesHoursState=business_hours
                     )
                     added += 1
 
