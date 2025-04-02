@@ -135,7 +135,8 @@ class PointsAdmin(admin.ModelAdmin):
                         description=point.get("pointDescription", ""),
                         restricted=point.get("restricted", False),
                         categories=category,
-                        businesHoursState=business_hours
+                        businesHoursState=business_hours,
+                        link=point.get("link", "")
                     )
                     added += 1
 
