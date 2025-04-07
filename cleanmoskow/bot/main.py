@@ -12,7 +12,7 @@ import logging
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 
-from handlers import start, waste, location
+from handlers import start, waste, location, game
 
 logging.basicConfig(level=logging.INFO)
 TOKEN = "7546363316:AAEtCZQrvrAbsOFlRm6bd30r4Xjatlcw4_I"
@@ -25,6 +25,7 @@ async def main():
     dp.include_router(location.router)
 
     dp.include_router(waste.router)
+    dp.include_router(game.router)
 
     await dp.start_polling(bot)
 

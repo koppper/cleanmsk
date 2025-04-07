@@ -4,6 +4,8 @@ import urllib.parse
 from django.conf import settings
 from .models import UserActivity
 import logging
+import re
+from games.models import CensoredWord
 
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -30,3 +32,16 @@ def log_user_action(request, action):
         UserActivity.objects.create(user=user, action=action)
 
 
+
+def censor(text: str) -> str:
+    """Заменяет запрещённые слова на звёздочки"""
+    if not text:
+        return ""
+
+    censored_words = CensoredWord.objects.values_list("word", flat=True)
+
+    for word in censored_words:
+        pattern = re.compile(re.escape(word), re.IGNORECASE)
+        text = pattern.sub("*" * len(word), text)
+
+    return text

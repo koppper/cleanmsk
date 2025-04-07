@@ -177,12 +177,12 @@ SWAGGER_SETTINGS = {
 #     "https://sorting-clean-moscow.ru",
 #     "https://www.sorting-clean-moscow.ru",
 # ]
-CORS_ALLOW_ALL_ORIGINS = True  # Разрешить все домены
+CORS_ALLOW_ALL_ORIGINS = True
 
 CSRF_TRUSTED_ORIGINS = [
     "https://sorting-clean-moscow.ru",
     "https://www.sorting-clean-moscow.ru",
-    "https://chistaya-moskva.vercel.app"
+    "https://chistaya-moskva.vercel.app",
 ]
 
 CORS_ALLOW_CREDENTIALS = True

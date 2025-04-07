@@ -50,6 +50,7 @@ for model in MODELS_TO_UNREGISTER:
 class PointsAdmin(admin.ModelAdmin):
     list_display = ("title", "address", "categories")
     search_fields = ("title", "address", "categories")
+    list_filter = ("categories",)
 
     actions = ["import_json"]
 
@@ -242,3 +243,4 @@ class NotificationAdmin(admin.ModelAdmin):
 class MessageTemplateyAdmin(admin.ModelAdmin):
     list_display = ('id', 'name', 'text', 'type')
     search_fields = ('name', 'text', 'type')
+    list_filter = ('type',)

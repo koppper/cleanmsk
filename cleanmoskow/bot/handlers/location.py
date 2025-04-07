@@ -10,6 +10,14 @@ from keyboards import get_keyboard
 from aiogram import Router
 from accounts.utils import log_user_action
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
+import logging
+import sys
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    stream=sys.stdout
+)
+logger = logging.getLogger(__name__)
 
 router = Router()
 from accounts.models import UserActivity, User
@@ -53,9 +61,14 @@ async def handle_location(message: types.Message, state: FSMContext):
         return
 
     try:
+        logger.info(f"[near_locations] waste_type from state: {waste_type}")
+
         category = await sync_to_async(Category.objects.filter(name_ru=waste_type).first)()
+        logger.info(f"[handle_location] waste_type from state: {waste_type}")
 
         if not category:
+            logger.warning("[near_locations] Категория не найдена!")
+
             await message.answer("❗️ Категория не найдена.")
             text = await get_message_template("choose_waste")
             kb = await get_keyboard([
@@ -66,6 +79,7 @@ async def handle_location(message: types.Message, state: FSMContext):
 
 
         points = await sync_to_async(lambda: list(Points.objects.filter(categories__icontains=category)))()
+        logger.info(f"[handle_location] Найдено {len(points)} пунктов для категории: {category.name_ru if category else 'None'}")
 
         if not points:
             await message.answer("❗️ Нет доступных пунктов для выбранной категории.")
@@ -83,14 +97,25 @@ async def handle_location(message: types.Message, state: FSMContext):
             return
 
         if not nearest_point.businesHoursState:
-            import logging
-            logging.warning(f"📌 Пункт без расписания: {nearest_point.title} (ID: {nearest_point.id})")
+            logger.warning(f"📌 Пункт без расписания: {nearest_point.title} (ID: {nearest_point.id})")
             await message.answer("❗️ Ближайший пункт не найден.")
             return
 
-        schedule_text = "Пункт работает:\n"
-        for day, hours in nearest_point.businesHoursState.items():
-            schedule_text += f"{day}: {hours}\n"
+        # schedule_text = ""
+        # for day, hours in nearest_point.businesHoursState.items():
+        #     schedule_text += f"{day}: {hours}\n"
+        schedule_text = ""
+
+        if isinstance(nearest_point.businesHoursState, dict):
+            is_24_7 = all(v == "00:00 - 23:59" for v in nearest_point.businesHoursState.values())
+            if is_24_7:
+                schedule_text = "Круглосуточно"
+            else:
+                for day, hours in nearest_point.businesHoursState.items():
+                    schedule_text += f"{day}: {hours}\n"
+
+        elif isinstance(nearest_point.businesHoursState, str):
+            schedule_text = nearest_point.businesHoursState
 
         await message.answer_location(latitude=nearest_point.latitude, longitude=nearest_point.longitude)
         title = f"{nearest_point.title}\n" if nearest_point.title else ""
@@ -100,7 +125,7 @@ async def handle_location(message: types.Message, state: FSMContext):
             f"Адрес: {nearest_point.address}\n"
             f"{title}"
             f"{link}"
-            f"Принимается старая техника: {nearest_point.description}\n"
+            f"{nearest_point.description}\n"
             f"Часы работы:\n"
             f"{schedule_text}"
         )
@@ -114,8 +139,7 @@ async def handle_location(message: types.Message, state: FSMContext):
         await message.answer(response, reply_markup=kb)
 
     except Exception as e:
-        import logging
-        logging.exception("Ошибка при обработке геолокации")
+        logger.error("Ошибка при обработке геолокации")
         text = await get_message_template("choose_waste")
         kb = await get_keyboard([
             "recyclable_button", "mixed_button", "hazardous_button"
@@ -206,21 +230,43 @@ async def near_locations(message: types.Message, state: FSMContext):
             if not point.businesHoursState:
                 continue
 
-            schedule_text = "Пункт работает:\n"
-            for day, hours in point.businesHoursState.items():
-                schedule_text += f"{day}: {hours}\n"
+            # schedule_text = ""
+            # for day, hours in point.businesHoursState.items():
+            #     schedule_text += f"{day}: {hours}\n"
+            schedule_text = ""
+
+            if isinstance(point.businesHoursState, dict):
+                is_24_7 = all(v == "00:00 - 23:59" for v in point.businesHoursState.values())
+                if is_24_7:
+                    schedule_text = "Круглосуточно"
+                else:
+                    for day, hours in point.businesHoursState.items():
+                        schedule_text += f"{day}: {hours}\n"
+
+            elif isinstance(point.businesHoursState, str):
+                schedule_text = point.businesHoursState
 
             title = f"{point.title}\n" if point.title else ""
             link = f"Ссылка: {point.link}\n" if point.link else ""
-
             response_text += (
                 f"Адрес: {point.address}\n"
                 f"{title}"
                 f"{link}"
-                f"Принимается старая техника: {point.description}\n"
-                f"Часы работы:\n"
-                f"{schedule_text}"
             )
+            if point.description:
+                response_text += f"{point.description}\n"
+            response_text += (
+                f"Часы работы:\n"
+                f"{schedule_text}\n\n"
+            )
+            # response_text += (
+            #     f"Адрес: {point.address}\n"
+            #     f"{title}"
+            #     f"{link}"
+            #     f"{point.description}\n"
+            #     f"Часы работы:\n"
+            #     f"{schedule_text}\n\n"
+            # )
         kb = await get_keyboard(["choose_other_point_button_text"])
 
         user = await sync_to_async(User.objects.get)(telegram_id=message.from_user.id)

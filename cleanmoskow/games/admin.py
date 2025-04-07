@@ -1,54 +1,32 @@
-from django.contrib import admin
+from django.contrib import admin, messages
 import json 
 from .models import GameSession, Leaderboard, QuizQuestions, CensoredWord
 from django.utils.safestring import mark_safe
 from django import forms
-
+from django.urls import path
+from django.shortcuts import redirect, render
+from .forms import CensoredWordImportForm, QuizQuestionsAdminForm
+import csv
+import io
+from .filters import CorrectPercentageFilter
 
 @admin.register(Leaderboard)
 class LeaderboardAdmin(admin.ModelAdmin):
-    list_display = ("id", "user", "username", "score")
-    search_fields = ("user",)
-import ast
+    list_display = ("id", "user", "score")
+    search_fields = ("user__username",)
 
-
-class QuizQuestionsAdminForm(forms.ModelForm):
-    answers = forms.CharField(
-        widget=forms.Textarea(attrs={"rows": 4, "cols": 40}),
-        help_text="Введите каждый вариант ответа с новой строки."
-    )
-
-    class Meta:
-        model = QuizQuestions
-        fields = "__all__"
-
-    def clean_answers(self):
-        raw_data = self.cleaned_data["answers"]
-
-        # Если уже список — просто вернуть его
-        if isinstance(raw_data, list):
-            return raw_data
-
-        try:
-            # Попробовать распарсить как JSON-строку или питоновский список
-            parsed = ast.literal_eval(raw_data)
-            if isinstance(parsed, list) and all(isinstance(x, str) for x in parsed):
-                return parsed
-        except (ValueError, SyntaxError):
-            pass
-
-        # Иначе — обычная обработка строки
-        lines = raw_data.strip().split("\n")
-        return [line.strip() for line in lines if line.strip()]
 
 @admin.register(QuizQuestions)
 class QuizQuestionsAdmin(admin.ModelAdmin):
     form = QuizQuestionsAdminForm
     list_display = ("id", "question", "correct_answer", "explanation", "tip_link", "correct_percentage")
     search_fields = ("question",)
+    list_filter = ("correct_answer", CorrectPercentageFilter)
+
     def correct_percentage(self, obj):
         return obj.correct_percentage()
     correct_percentage.short_description = "Процент правильных ответов"
+
 
 @admin.register(GameSession)
 class GameSessionAdmin(admin.ModelAdmin):
@@ -114,3 +92,49 @@ class GameSessionAdmin(admin.ModelAdmin):
 class CensoredWordAdmin(admin.ModelAdmin):
     list_display = ("word",)
     search_fields = ("word",)
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path("import/", self.admin_site.admin_view(self.import_view), name="censoredword_import"),
+        ]
+        return custom_urls + urls
+
+    def import_view(self, request):
+        if request.method == "POST":
+            form = CensoredWordImportForm(request.POST, request.FILES)
+            if form.is_valid():
+                file = form.cleaned_data["file"]
+                ext = file.name.split(".")[-1].lower()
+                count = 0
+
+                if ext == "txt":
+                    content = file.read().decode("utf-8")
+                    words = content.strip().splitlines()
+                    for word in words:
+                        if word.strip():
+                            CensoredWord.objects.get_or_create(word=word.strip())
+                            count += 1
+
+                elif ext == "csv":
+                    content = file.read().decode("utf-8")
+                    reader = csv.DictReader(io.StringIO(content))
+                    for row in reader:
+                        word = row.get("word")
+                        if word:
+                            CensoredWord.objects.get_or_create(word=word.strip())
+                            count += 1
+                else:
+                    messages.error(request, "Поддерживаются только .txt и .csv файлы")
+                    return redirect("..")
+
+                messages.success(request, f"Импортировано {count} слов!")
+                return redirect("..")
+        else:
+            form = CensoredWordImportForm()
+
+        context = {
+            "form": form,
+            "title": "Импорт цензурных слов",
+        }
+        return render(request, "admin/games/censoredword/import_form.html", context)

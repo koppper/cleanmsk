@@ -36,7 +36,7 @@ class StartSortingGameSession(APIView):
 
             leaderboard_entry, created = Leaderboard.objects.get_or_create(
                 user=telegram_user,
-                defaults={"username": str(telegram_user), "score": 0}
+                defaults={"score": 0}
             )
 
             leaderboard_entry.score += score

@@ -106,7 +106,7 @@ class AnswerQuestionView(APIView):
         explanation = question.explanation
         leaderboard_entry, created = Leaderboard.objects.get_or_create(
             user=session.user,
-            defaults={"username": session.user.username, "score": 0}
+            defaults={"score": 0}
         )
         question.total_answers += 1
 
@@ -224,7 +224,7 @@ class LeaderboardView(APIView):
         ranked_players = [
             {
                 "place": index + 1,
-                "username": entry.censor_username(),
+                "username": entry.user.username if entry.user else "Unknown",
                 "score": entry.score
 
             }

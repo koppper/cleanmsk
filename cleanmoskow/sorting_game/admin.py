@@ -4,7 +4,7 @@ from .models import SortingGameSession, SortingGameStart
 @admin.register(SortingGameSession)
 class SortingGameSessionAdmin(admin.ModelAdmin):
     list_display = ("id", "user", "score", "created_at")
-    search_fields = ("id",)
+    search_fields = ("id", "user__username")
 
     change_list_template = "admin/api/sortinggamesession/change_list.html"
 
@@ -13,7 +13,7 @@ class SortingGameSessionAdmin(admin.ModelAdmin):
             extra_context = {}
 
         total_games = SortingGameSession.objects.count()
-        finished_games = SortingGameSession.objects.filter(score__gt=0).count()
+        finished_games = SortingGameSession.objects.all().count()
 
         start_counter_obj = SortingGameStart.objects.first()
         started_count = start_counter_obj.counter if start_counter_obj else 0

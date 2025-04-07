@@ -31,7 +31,7 @@ class UserAdmin(admin.ModelAdmin):
 class TelegramUserAdmin(admin.ModelAdmin):
     model = TelegramUser
     list_display = ('user', 'telegram_id', 'uuid', "first_name", "last_name", "created_at")
-    list_filter = ('created_at', ('user', admin.BooleanFieldListFilter))
+    list_filter = ('created_at',)
     search_fields = ('telegram_id', 'uuid', "first_name", "last_name")
     ordering = ('-created_at',)
 
@@ -53,6 +53,8 @@ admin.site.register(TelegramUser, TelegramUserAdmin)
 class UserActivityAdmin(admin.ModelAdmin):
     list_display = ("user", "action", "timestamp")
     list_filter = ("action", "timestamp")
+    search_fields = ("user__username", )
+    
     ordering = ("-timestamp",)
     change_list_template = "admin/user_activity_changelist.html"
 

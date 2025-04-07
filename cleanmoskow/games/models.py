@@ -11,12 +11,6 @@ class QuizQuestions(models.Model):
     explanation = models.TextField(null=True, blank=True)
     tip_link = models.URLField(null=True, blank=True)
     image = models.ImageField(null=True, blank=True, upload_to="images/")
-    difficulty = models.CharField(
-        max_length=20, 
-        choices=[("easy", "Легкий"), ("medium", "Средний"), ("hard", "Трудный")],
-        default="medium",
-        verbose_name="Сложность"
-    )
     total_answers = models.IntegerField(default=0, verbose_name="Всего ответов")
     correct_answers = models.IntegerField(default=0, verbose_name="Правильных ответов")
 
@@ -46,22 +40,23 @@ class CensoredWord(models.Model):
 
 class Leaderboard(models.Model):
     user = models.ForeignKey(TelegramUser, on_delete=models.CASCADE, null=True, blank=True)
-    username = models.CharField(max_length=255)
+    # username = models.CharField(max_length=255)
     score = models.FloatField()
 
-    def censor_username(self):
-        """Фильтруем username, заменяя запрещенные слова на звёздочки"""
-        censored_username = self.username
-        censored_words = CensoredWord.objects.values_list("word", flat=True)
+    # def censor_username(self):
+    #     """Фильтруем username, заменяя запрещенные слова на звёздочки"""
+    #     username = self.user.username if self.user and self.user.username else "Null"
+    #     censored_words = CensoredWord.objects.values_list("word", flat=True)
 
-        for word in censored_words:
-            pattern = re.compile(re.escape(word), re.IGNORECASE)
-            censored_username = pattern.sub("*" * len(word), censored_username)
+    #     for word in censored_words:
+    #         pattern = re.compile(re.escape(word), re.IGNORECASE)
+    #         username = pattern.sub("*" * len(word), username)
 
-        return censored_username
+    #     return username
 
     def __str__(self):
-        return f"{self.censor_username()}"
+        return self.user.username if self.user and self.user.username else "Unknown"
+
     
     class Meta:
         verbose_name = "Лидерборд"
@@ -86,3 +81,4 @@ class GameSession(models.Model):
     class Meta:
         verbose_name = "Игровая сессия квиза"
         verbose_name_plural = "Игровые сессии квизов"
+        ordering = ['-created_at']

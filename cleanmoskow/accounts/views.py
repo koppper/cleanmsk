@@ -3,7 +3,7 @@ from rest_framework.views import APIView
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from .models import TelegramUser, User
-from .serializers import TelegramUserSerializer, LoginSerializer
+from .serializers import TelegramUserSerializer, LoginSerializer, RegisterSerializer
 from .utils import verify_telegram_data
 import uuid
 from games.serializers import TelegramIdSerializer
@@ -13,26 +13,67 @@ from oauth2_provider.models import AccessToken, RefreshToken
 from oauth2_provider.settings import oauth2_settings
 from django.utils.timezone import now
 from datetime import timedelta
+from games.models import Leaderboard
+from .utils import censor
 
 
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status, permissions
-from django.shortcuts import get_object_or_404
-from django.utils.timezone import now
-from drf_yasg.utils import swagger_auto_schema
-from drf_yasg import openapi
-import uuid
-from datetime import timedelta
-from oauth2_provider.models import AccessToken
-from oauth2_provider.settings import oauth2_settings
+# class AuthAPIView(APIView):
+#     """Регистрация или логин пользователя по Telegram ID"""
+#     permission_classes = [permissions.AllowAny]
 
-from .models import User, TelegramUser
-from .serializers import TelegramUserSerializer, LoginSerializer
+#     @swagger_auto_schema(
+#         request_body=LoginSerializer,
+#         responses={200: openapi.Response("Успешный ответ", TelegramUserSerializer)},
+#     )
+#     def post(self, request):
+#         serializer = LoginSerializer(data=request.data)
+#         if not serializer.is_valid():
+#             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+#         telegram_id = serializer.validated_data["telegram_id"]
+#         username = serializer.validated_data.get("username")
+#         telegram_user = TelegramUser.objects.filter(telegram_id=telegram_id).first()
+
+#         if not telegram_user:
+#             user = User.objects.create(
+#                 telegram_id=telegram_id,
+#                 username=username or f"user_{telegram_id}"
+#             )
+#             telegram_user = TelegramUser.objects.create(
+#                 user=user,
+#                 uuid=uuid.uuid4(),
+#                 username=username,
+#                 telegram_id=telegram_id
+#             )
+
+#         token = AccessToken.objects.create(
+#             user=telegram_user.user,
+#             token=str(uuid.uuid4()),
+#             expires=now() + timedelta(seconds=oauth2_settings.ACCESS_TOKEN_EXPIRE_SECONDS),
+#             scope="read write"
+#         )
+
+#         response = Response({
+#             "message": "Успешный вход",
+#             "access_token": token.token,
+#             "expires": token.expires,
+#         }, status=status.HTTP_200_OK)
+
+#         response.set_cookie(
+#             key="access_token",
+#             value=token.token,
+#             httponly=True,
+#             secure=True,
+#             samesite="Lax",
+#             max_age=oauth2_settings.ACCESS_TOKEN_EXPIRE_SECONDS,
+#         )
+#         response["Authorization"] = f"Bearer {token.token}"
+
+#         return response
 
 
-class AuthAPIView(APIView):
-    """Регистрация или логин пользователя по Telegram ID"""
+class LoginAPIView(APIView):
+    """Логин по Telegram ID (без регистрации)"""
     permission_classes = [permissions.AllowAny]
 
     @swagger_auto_schema(
@@ -44,19 +85,12 @@ class AuthAPIView(APIView):
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        telegram_id_value = serializer.validated_data["telegram_id"]
+        telegram_id = serializer.validated_data["telegram_id"]
 
-        telegram_user = TelegramUser.objects.filter(telegram_id=telegram_id_value).first()
+        telegram_user = TelegramUser.objects.filter(telegram_id=telegram_id).first()
 
         if not telegram_user:
-            user = get_object_or_404(User, telegram_id=telegram_id_value)
-
-            telegram_user = TelegramUser.objects.create(
-                user=user,
-                uuid=uuid.uuid4(),
-                username=user.username,
-                telegram_id=user.telegram_id
-            )
+            return Response({"error": "Пользователь не зарегистрирован"}, status=status.HTTP_404_NOT_FOUND)
 
         token = AccessToken.objects.create(
             user=telegram_user.user,
@@ -68,15 +102,15 @@ class AuthAPIView(APIView):
         response = Response({
             "message": "Успешный вход",
             "access_token": token.token,
-            "expires": token.expires
+            "expires": token.expires,
         }, status=status.HTTP_200_OK)
 
         response.set_cookie(
             key="access_token",
             value=token.token,
-            httponly=True,  # Защита от XSS
-            secure=True,  # Отправлять только по HTTPS
-            samesite="Lax",  # Защита от CSRF
+            httponly=True,
+            secure=True,
+            samesite="Lax",
             max_age=oauth2_settings.ACCESS_TOKEN_EXPIRE_SECONDS,
         )
         response["Authorization"] = f"Bearer {token.token}"
@@ -84,103 +118,66 @@ class AuthAPIView(APIView):
         return response
 
 
+class RegisterAPIView(APIView):
+    """Регистрация нового пользователя по Telegram ID"""
+    permission_classes = [permissions.AllowAny]
 
-# class RegisterUserAPIView(APIView):
-#     """Регистрация пользователя по Telegram ID"""
+    @swagger_auto_schema(
+        request_body=RegisterSerializer,
+        responses={201: openapi.Response("Зарегистрирован", TelegramUserSerializer)},
+    )
+    def post(self, request):
+        serializer = RegisterSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-#     @swagger_auto_schema(
-#         request_body=openapi.Schema(
-#             type=openapi.TYPE_OBJECT,
-#             required=["telegram_id", "initData"],
-#             properties={
-#                 "telegram_id": openapi.Schema(type=openapi.TYPE_STRING, description="Уникальный Telegram ID пользователя"),
-#                 "initData": openapi.Schema(type=openapi.TYPE_STRING, description="Данные инициализации Telegram WebApp"),
-#                 "username": openapi.Schema(type=openapi.TYPE_STRING, description="Имя пользователя", nullable=True),
-#                 "first_name": openapi.Schema(type=openapi.TYPE_STRING, description="Имя", nullable=True),
-#                 "last_name": openapi.Schema(type=openapi.TYPE_STRING, description="Фамилия", nullable=True),
-#             },
-#         ),
-#         responses={
-#             200: openapi.Response("Успешный ответ", TelegramUserSerializer),
-#             400: openapi.Response("Ошибка в запросе"),
-#             403: openapi.Response("Недействительные данные Telegram"),
-#         },
-#     )
-#     def post(self, request):
-#         data = request.data
-#         telegram_id = data.get("telegram_id")
-#         username = data.get("username", "")
-#         first_name = data.get("first_name", "")
-#         last_name = data.get("last_name", "")
+        telegram_id = serializer.validated_data["telegram_id"]
+        username = serializer.validated_data.get("username")
+        censored_username = censor(username) if username else f"user_{telegram_id}"
 
-#         if not telegram_id:
-#             return Response({"error": "telegram_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+        if TelegramUser.objects.filter(telegram_id=telegram_id).exists():
+            return Response({"detail": "Пользователь уже зарегистрирован"}, status=status.HTTP_400_BAD_REQUEST)
 
-#         user = User.objects.get(telegram_id=telegram_id)
-#         if not user:
-#             return Response({"error": "user not found"}, status=status.HTTP_400_BAD_REQUEST)
-#         telegram_user, telegram_created = TelegramUser.objects.get_or_create(
-#             user=user,
-#             defaults={
-#                 "uuid": uuid.uuid4(),
-#                 "username": username,
-#                 "telegram_id": telegram_id,
-#                 "first_name": first_name,
-#                 "last_name": last_name,
-#             },
-#         )
+        user, created = User.objects.get_or_create(
+            telegram_id=telegram_id,
+            defaults={"username": username or f"user_{telegram_id}"}
+        )
 
-#         serializer = TelegramUserSerializer(telegram_user)
-#         message = "Пользователь зарегистрирован" if telegram_created else "Пользователь уже существует"
+        telegram_user = TelegramUser.objects.create(
+            user=user,
+            uuid=uuid.uuid4(),
+            username=censored_username,
+            telegram_id=telegram_id
+        )
 
-#         return Response({"message": message, "user": serializer.data}, status=status.HTTP_200_OK)
+        token = AccessToken.objects.create(
+            user=user,
+            token=str(uuid.uuid4()),
+            expires=now() + timedelta(seconds=oauth2_settings.ACCESS_TOKEN_EXPIRE_SECONDS),
+            scope="read write"
+        )
 
+        response = Response({
+            "message": "Успешная регистрация",
+            "access_token": token.token,
+        }, status=status.HTTP_201_CREATED)
 
-# class LoginAPIView(APIView):
-#     """Авторизация через OAuth2, выдача только access token"""
-#     permission_classes = [permissions.AllowAny]
+        response.set_cookie(
+            key="access_token",
+            value=token.token,
+            httponly=True,
+            secure=True,
+            samesite="Lax",
+            max_age=oauth2_settings.ACCESS_TOKEN_EXPIRE_SECONDS,
+        )
+        response["Authorization"] = f"Bearer {token.token}"
 
-#     @swagger_auto_schema(
-#         operation_description="Логин",
-#         request_body=LoginSerializer,
-#         responses={200: openapi.Response("Пользователь найден.", LoginSerializer)}
-#     )
-#     def post(self, request):
-#         serializer = LoginSerializer(data=request.data)
-#         if not serializer.is_valid():
-#             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return response
 
-#         uuid_value = serializer.validated_data["uuid"]
-        
-#         user = get_object_or_404(TelegramUser, uuid=uuid_value).user
-#         if not user:
-#             return Response({"error": "Пользователь не найден"}, status=status.HTTP_404_NOT_FOUND)
-
-#         token = AccessToken.objects.create(
-#             user=user,
-#             token=str(uuid.uuid4()),
-#             expires=now() + timedelta(seconds=oauth2_settings.ACCESS_TOKEN_EXPIRE_SECONDS),
-#             scope="read write"
-#         )
-#         response = Response({"message": "success", "access_token": token.token, "expires": token.expires})
-
-#         response.set_cookie(
-#                 key="access_token",
-#                 value=token,
-#                 httponly=True,  # Защита от XSS
-#                 secure=True,  # Отправлять только по HTTPS
-#                 samesite="Lax",  # Защита от CSRF
-#                 max_age=oauth2_settings.ACCESS_TOKEN_EXPIRE_SECONDS,
-#         )
-#         response["Authorization"] = f"Bearer {token.token}"
-
-#         return response
-
-from games.models import Leaderboard
 
 class UserProfileView(APIView):
     """Получение данных текущего пользователя"""
-    
+
     def get(self, request):
         if not request.user or not hasattr(request.user, "telegram_profile"):
             return Response({"error": "Пользователь не авторизован"}, status=401)

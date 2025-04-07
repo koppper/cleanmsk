@@ -12,7 +12,11 @@ class TelegramUserSerializer(serializers.ModelSerializer):
 
 
 class LoginSerializer(serializers.Serializer):
-    # uuid = serializers.UUIDField(required=True, help_text="UUID пользователя")
+    telegram_id = serializers.IntegerField(required=True, help_text="telegram_id пользователя")
+
+
+class RegisterSerializer(serializers.Serializer):
+    username = serializers.CharField(required=True, help_text="username пользователя")
     telegram_id = serializers.IntegerField(required=True, help_text="telegram_id пользователя")
 
 
