@@ -24,12 +24,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv('SECRET_KEY')
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv('DEBUG') == 'True'
+DEBUG = os.getenv('DJANGO_DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = ['*']
+# ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = os.getenv('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
 
 # Application definition
@@ -128,9 +129,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/4.2/topics/i18n/
 
-LANGUAGE_CODE = 'ru'
+LANGUAGE_CODE = os.getenv('LANGUAGE_CODE', 'ru-ru')
 
-TIME_ZONE = 'Europe/Moscow'
+TIME_ZONE = os.getenv('TIMEZONE', 'Europe/Moscow')
 
 USE_I18N = True
 
@@ -166,8 +167,6 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 STATICFILES_DIRS = []
 
 
-TELEGRAM_BOT_TOKEN = "7943017558:AAEFHuEPV8VcLdTVPbzeWVIJIAj0tSc6Lmg"
-
 SWAGGER_SETTINGS = {
     "USE_SESSION_AUTH": False,
     # "SECURITY_DEFINITIONS": {
@@ -176,17 +175,9 @@ SWAGGER_SETTINGS = {
     "DEFAULT_API_URL": "https://sorting-clean-moscow.ru"
 }
 
-# CORS_ALLOWED_ORIGINS = [
-#     "https://sorting-clean-moscow.ru",
-#     "https://www.sorting-clean-moscow.ru",
-# ]
 CORS_ALLOW_ALL_ORIGINS = True
-
-CSRF_TRUSTED_ORIGINS = [
-    "https://sorting-clean-moscow.ru",
-    "https://www.sorting-clean-moscow.ru",
-    "https://chistaya-moskva.vercel.app",
-]
+# CORS_ALLOWED_ORIGINS = os.getenv('DJANGO_CORS_ALLOWED_ORIGINS', '').split(',') если CORS_ALLOW_ALL_ORIGINS будет False
+CSRF_TRUSTED_ORIGINS = os.getenv('DJANGO_CSRF_TRUSTED_ORIGINS', '').split(',')
 
 CORS_ALLOW_CREDENTIALS = True
 
@@ -217,13 +208,10 @@ REST_FRAMEWORK = {
 # REDIS_PORT = os.getenv('REDIS_PORT')
 
 CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL')
+CELERY_RESULT_BACKEND = os.getenv('CELERY_BROKER_URL')
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
-CELERY_RESULT_BACKEND = os.getenv('CELERY_BROKER_URL')
-
-CELERY_IMPORTS = ("api.tasks",)
-
-CELERY_TIMEZONE = 'Europe/Moscow'
+CELERY_TIMEZONE = TIME_ZONE
 CELERY_ENABLE_UTC = True
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers.DatabaseScheduler'
 
@@ -233,4 +221,18 @@ DATA_UPLOAD_MAX_NUMBER_FIELDS = 10000
 OAUTH2_PROVIDER = {
     "ACCESS_TOKEN_EXPIRE_SECONDS": 3600,
 }
-TELEGRAM_TOKEN = os.getenv('TOKEN')
+TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
+
+
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+
+# if ENVIRONMENT == "development":
+#     INTERNAL_IPS = ["127.0.0.1"]
+#     # Можешь подключить debug-toolbar
+#     INSTALLED_APPS += ['debug_toolbar']
+#     MIDDLEWARE = ['debug_toolbar.middleware.DebugToolbarMiddleware'] + MIDDLEWARE
+
+# if ENVIRONMENT == "production":
+#     SECURE_SSL_REDIRECT = True
+#     SESSION_COOKIE_SECURE = True
+#     CSRF_COOKIE_SECURE = True

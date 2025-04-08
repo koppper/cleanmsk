@@ -3,22 +3,23 @@ version: '3.8'
 services:
   db:
     image: postgres:12.18
-    container_name: postgres_db
+    container_name: postgres_db2
     restart: always
+    env_file: cleanmoskow/.env
     environment:
-      POSTGRES_USER: cleanmoskow
+      POSTGRES_USER: cleanmoskow2
       POSTGRES_PASSWORD: uAT2It40z8YMN4i
-      POSTGRES_DB: cleanmoskow
+      POSTGRES_DB: cleanmoskow2
     ports:
-      - "5433:5432"
+      - "5434:5432"
     volumes:
-      - db_data:/var/lib/postgresql/data
+      - db_data2:/var/lib/postgresql/data
 
   django:
     build: .
-    container_name: django_app
+    container_name: django_app2
     restart: always
-    command: gunicorn cleanmoskow.wsgi:application --bind 0.0.0.0:8086 --workers 4
+    command: gunicorn cleanmoskow.wsgi:application --bind 0.0.0.0:8087 --workers 4
     depends_on: 
       - db
     env_file: cleanmoskow/.env
@@ -26,7 +27,7 @@ services:
       DEBUG: "False"
       PYTHONPATH: "/code"
     ports:
-      - "8086:8086"
+      - "8087:8087"
     volumes:
       - ./cleanmoskow:/code
       - ./static:/code/static
@@ -34,7 +35,7 @@ services:
 
   bot:
     build: .
-    container_name: telegram_bot
+    container_name: telegram_bot2
     restart: always
     depends_on: 
       - django
@@ -45,14 +46,14 @@ services:
 
   redis:
     image: redis:latest
-    container_name: redis
+    container_name: redis2  
     restart: always
     ports:
-      - "6379:6379"
+      - "6380:6379"
 
   celery:
     build: .
-    container_name: celery_worker
+    container_name: celery_worker2
     restart: always
     command: celery -A cleanmoskow worker --loglevel=info
     depends_on:
@@ -60,9 +61,10 @@ services:
       - django
     volumes:
       - ./cleanmoskow:/code
+
   celery_beat:
     build: .
-    container_name: celery_beat
+    container_name: celery_beat2
     restart: always
     command: celery -A cleanmoskow beat --loglevel=info
     depends_on:
@@ -72,4 +74,4 @@ services:
       - ./cleanmoskow:/code
 
 volumes:
-  db_data:
+  db_data2:

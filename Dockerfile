@@ -25,4 +25,4 @@ ENV PYTHONPATH=/code
 RUN python manage.py collectstatic --noinput
 
 # Запускаем Gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:8086", "cleanmoskow.wsgi:application"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8087", "cleanmoskow.wsgi:application"]

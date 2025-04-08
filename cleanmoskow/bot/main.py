@@ -16,7 +16,7 @@ from django.conf import settings
 from handlers import start, waste, location, universal_handler
 
 logging.basicConfig(level=logging.INFO)
-TOKEN = settings.TELEGRAM_TOKEN
+TOKEN = settings.TELEGRAM_BOT_TOKEN
 
 async def main():
     bot = Bot(token=TOKEN)
