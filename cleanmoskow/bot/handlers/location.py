@@ -134,7 +134,7 @@ async def handle_location(message: types.Message, state: FSMContext):
         user.location_requests_count += 1
         await sync_to_async(user.save)()
 
-        kb = await get_keyboard(["choose_other_point_button_text", "show_nearby_points_button_text"])
+        kb = await get_keyboard(["choose_other_point_button_text", "show_nearby_points_button_text", "return_to_main"])
 
         await message.answer(response, reply_markup=kb)
 

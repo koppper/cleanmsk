@@ -11,21 +11,23 @@ import asyncio
 import logging
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
+from django.conf import settings
 
-from handlers import start, waste, location, game
+from handlers import start, waste, location, universal_handler
 
 logging.basicConfig(level=logging.INFO)
-TOKEN = "7546363316:AAEtCZQrvrAbsOFlRm6bd30r4Xjatlcw4_I"
+TOKEN = settings.TELEGRAM_TOKEN
 
 async def main():
     bot = Bot(token=TOKEN)
     dp = Dispatcher(storage=MemoryStorage())
 
     dp.include_router(start.router)
-    dp.include_router(location.router)
+    # dp.include_router(location.router)
 
-    dp.include_router(waste.router)
-    dp.include_router(game.router)
+    # dp.include_router(waste.router)
+    # dp.include_router(game.router)
+    dp.include_router(universal_handler.router)
 
     await dp.start_polling(bot)
 

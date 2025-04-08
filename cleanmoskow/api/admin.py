@@ -12,6 +12,7 @@ from django.db import models
 from django import forms
 from PIL import Image
 from django.core.exceptions import ValidationError
+from django.http import HttpResponse
 
 from django_celery_beat.models import (
     IntervalSchedule,
@@ -27,6 +28,11 @@ from oauth2_provider.models import (
     Grant,
     IDToken,
 )
+from .forms import ImageZipUploadForm
+import os, zipfile, uuid, csv
+from django.conf import settings
+from openpyxl import Workbook
+from io import BytesIO
 
 MODELS_TO_UNREGISTER = [
     IntervalSchedule,
@@ -203,6 +209,82 @@ class AdviceCategoryAdmin(admin.ModelAdmin):
 
     list_display = ('id', 'name')
     search_fields = ('name',)
+
+    change_list_template = "admin/api/advices/change_list.html"
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path('upload-images/', self.admin_site.admin_view(self.upload_images_view), name='upload-images'),
+        ]
+        return custom_urls + urls
+
+    def upload_images_view(self, request):
+        if request.method == 'POST':
+            form = ImageZipUploadForm(request.POST, request.FILES)
+            if form.is_valid():
+                zip_file = form.cleaned_data['zip_file']
+                image_folder = os.path.join(settings.MEDIA_ROOT, 'advice_link')
+                os.makedirs(image_folder, exist_ok=True)
+
+                urls = []
+
+                with zipfile.ZipFile(zip_file, 'r') as archive:
+                    for file in archive.namelist():
+                        if archive.getinfo(file).is_dir():
+                            continue
+
+                        if file.endswith(('.jpg', '.jpeg', '.png')) \
+                                and not file.startswith('__MACOSX') \
+                                and '/._' not in file \
+                                and not os.path.basename(file).startswith("._"):
+
+                            with archive.open(file) as img_file:
+                                try:
+                                    img = Image.open(img_file)
+                                    img.verify()
+                                    img_file.seek(0)
+                                    img = Image.open(img_file)
+
+                                    new_name = f"{uuid.uuid4().hex[:8]}_{os.path.basename(file)}"
+                                    path_to_save = os.path.join(image_folder, new_name)
+
+                                    img_file.seek(0)
+                                    with open(path_to_save, 'wb') as out_file:
+                                        out_file.write(img_file.read())
+
+                                    media_url = f"https://sorting-clean-moscow.ru/media/advice_link/{new_name}"
+                                    urls.append(media_url)
+
+                                except Exception as e:
+                                    print(f"Пропущен файл {file}: {e}")
+                                    continue
+                wb = Workbook()
+                ws = wb.active
+                ws.title = "Ссылки"
+                ws.append(["Ссылка"])
+
+                for url in urls:
+                    ws.append([url])
+
+                output = BytesIO()
+                wb.save(output)
+                output.seek(0)
+
+                response = HttpResponse(
+                    output,
+                    content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                )
+                response['Content-Disposition'] = 'attachment; filename="image_links.xlsx"'
+                return response
+        else:
+            form = ImageZipUploadForm()
+
+        context = dict(
+            self.admin_site.each_context(request),
+            form=form,
+        )
+        return render(request, "admin/api/advices/upload_form.html", context)
 
 
 # @admin.register(Advice)

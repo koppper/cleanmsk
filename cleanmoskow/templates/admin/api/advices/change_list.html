@@ -4,6 +4,6 @@
 {% block object-tools-items %}
     {{ block.super }}
     <li>
-        <a href="{{ import_json_url }}" class="grp-button">Импорт JSON</a>
+        <a href="{% url 'admin:upload-images' %}" class="grp-button">Загрузить изображения (ZIP)</a>
     </li>
 {% endblock %}
